@@ -1,9 +1,0 @@
-0, GITHUB_LINK, DESCRIPTION
-11, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/29fd4860db339b5d5fe02760b3e47732c3437dd0, interactive and bash mode
-42, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/545a43a91356bdee3a03646a8489d212ef2bb02a, implemented built-in cmds like cd, pwd, addressed line > 512 char, execute cmds built-in
-50, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/db6648e87c52e35d5a13bd2cbfcb8dc3907761da, correctly handles multiple cmd in one line
-82, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/2daac538d0052dc28682ca4ac166bf0151bf24e4, simple redir, missing adv redir and handle blank lines in batch
-84, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/509a5afa0f957aef10c06b6034ea3cc95f9d2043, check if parents dir exist, put in helper instead of main, added some complex redir validation (incomplete)
-88, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/50d98b76d1a9156febe11e0d95cbe0063f2e9408, added some complex redir file validation
-94, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/1131890f4c705df9d588eb2604a3d715e6eb3231, fixed prepend order! debugging took too long
-100, https://proj.cs.uchicago.edu/CMSC-14400-winter-2026/guanc/-/commit/529df4bc46cf13226d0a8da3b4abbd42c3bc3b96, should've added earlier but check if parent dir exists for compl redir
