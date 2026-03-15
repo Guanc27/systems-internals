@@ -1,6 +1,6 @@
-trace_file=traces/demo_success.jsonl
-total_commands=10
+trace_file=traces/phase2_success.jsonl
+total_commands=9
 failed_commands=3
-average_elapsed_ms=2.70
+average_elapsed_ms=1.89
 top_commands=i2c_write:1, retry:1, dump_regs:1, spi_xfer:1, mdio_read:1
 failure_details=redir=0:3

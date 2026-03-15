@@ -1,0 +1,6 @@
+trace_file=traces/phase2_failure.jsonl
+total_commands=3
+failed_commands=3
+average_elapsed_ms=0.33
+top_commands=i2c_read:1, retry:1, assert_eq:1
+failure_details=redir=0:3

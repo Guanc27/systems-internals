@@ -11,7 +11,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "allocator.h"
 #include "sim_device.h"
 #include "trace.h"
 
@@ -370,19 +369,6 @@ static int run_protocol_builtin(char **argv, int argc) {
     return 2;
 }
 
-static void print_memstat(void) {
-    const AllocatorStats *stats = allocator_get_stats();
-    char buf[256];
-    (void)snprintf(buf, sizeof(buf),
-                   "alloc_calls=%lu free_calls=%lu failed_allocs=%lu injected_failures=%lu "
-                   "bytes_requested=%lu backend=%s fault_mode=%d fault_rate=%.3f\n",
-                   stats->alloc_calls, stats->free_calls, stats->failed_allocs, stats->injected_failures,
-                   stats->bytes_requested, stats->using_smalloc ? "smalloc" : "libc", stats->fault_mode_on,
-                   stats->fault_rate);
-    my_print(buf);
-    set_last_result(buf);
-}
-
 static int execute_single(char *cmd);
 
 static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
@@ -393,7 +379,6 @@ static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
     char *subcmd;
     long start_ms;
     long elapsed;
-    double rate;
 
     if (strcmp(argv[0], "sleep_ms") == 0) {
         if (argc != 2 || parse_int(argv[1], &ms) != 0 || ms < 0) {
@@ -429,13 +414,13 @@ static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
             return -1;
         }
         for (i = 0; i < retries; i++) {
-            char *buf = allocator_alloc(strlen(subcmd) + 1);
+            char *buf = malloc(strlen(subcmd) + 1);
             if (buf == NULL) {
                 return -1;
             }
             strcpy(buf, subcmd);
             status = execute_single(buf);
-            allocator_free(buf);
+            free(buf);
             if (status == 0) {
                 return 0;
             }
@@ -453,7 +438,7 @@ static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
             return -1;
         }
         {
-            char *buf = allocator_alloc(strlen(subcmd) + 1);
+            char *buf = malloc(strlen(subcmd) + 1);
             if (buf == NULL) {
                 return -1;
             }
@@ -461,7 +446,7 @@ static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
             start_ms = monotonic_ms();
             status = execute_single(buf);
             elapsed = monotonic_ms() - start_ms;
-            allocator_free(buf);
+            free(buf);
         }
         if (status == 0 && elapsed < ms) {
             return 1;
@@ -472,36 +457,6 @@ static int run_control_builtin(char **argv, int argc, const char *raw_cmd) {
             return 0;
         }
         return 1;
-    }
-
-    if (strcmp(argv[0], "memstat") == 0) {
-        if (argc != 1) {
-            return -1;
-        }
-        print_memstat();
-        return 0;
-    }
-
-    if (strcmp(argv[0], "memfault") == 0) {
-        if (argc == 2 && strcmp(argv[1], "on") == 0) {
-            allocator_set_fault_mode(1);
-            set_last_result("MEMFAULT_ON");
-            return 0;
-        }
-        if (argc == 2 && strcmp(argv[1], "off") == 0) {
-            allocator_set_fault_mode(0);
-            set_last_result("MEMFAULT_OFF");
-            return 0;
-        }
-        if (argc == 3 && strcmp(argv[1], "rate") == 0) {
-            rate = atof(argv[2]);
-            if (allocator_set_fault_rate(rate) != 0) {
-                return -1;
-            }
-            set_last_result("MEMFAULT_RATE_SET");
-            return 0;
-        }
-        return -1;
     }
 
     return 2;
@@ -588,7 +543,7 @@ static int execute_single(char *cmd) {
         return 0;
     }
 
-    work = allocator_alloc(strlen(cmd) + 1);
+    work = malloc(strlen(cmd) + 1);
     if (work == NULL) {
         print_error();
         return 1;
@@ -598,7 +553,7 @@ static int execute_single(char *cmd) {
     start_ms = monotonic_ms();
     redir_type = parse_redirection(work, &prog_part, &outfile, &advanced);
     if (redir_type < 0) {
-        allocator_free(work);
+        free(work);
         print_error();
         trace_log_command(cmd, 1, "bad_redirection", g_last_result, monotonic_ms() - start_ms);
         return 1;
@@ -626,7 +581,7 @@ static int execute_single(char *cmd) {
     (void)snprintf(detail, sizeof(detail), "redir=%d", redir_type == 0 ? 0 : (advanced ? 2 : 1));
     trace_log_command(cmd, status == 0 ? 0 : 1, detail, g_last_result, elapsed);
 
-    allocator_free(work);
+    free(work);
     return status == 0 ? 0 : 1;
 }
 
@@ -666,7 +621,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    allocator_init_from_env();
     (void)trace_init_from_env();
     (void)sim_init();
     set_last_result("");

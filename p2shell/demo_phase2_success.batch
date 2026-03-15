@@ -1,10 +1,9 @@
 i2c_write 0 80 1 1
 retry 4 i2c_read 0 80 0 1
 dump_regs 0 8
-spi_xfer 0 1 1 2 3 4
+spi_xfer 0 1 1 2 3
 mdio_read 0 1 2
-uart_send 0 provisioning complete
-sleep_ms 20
+uart_send 0 bringup_ok
+sleep_ms 15
 expect_timeout 10 sleep_ms 20
 assert_eq $LAST TIMEOUT_EXPECTED
-memstat
