@@ -1,0 +1,5 @@
+trace_file=traces/demo_failure.jsonl
+total_commands=2
+failed_commands=0
+average_elapsed_ms=0.50
+top_commands=memfault:2

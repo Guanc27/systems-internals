@@ -1,0 +1,16 @@
+memfault on
+memfault rate 1.0
+retry 2 i2c_read 0 80 0 1
+An error has occurred
+memfault off
+An error has occurred
+memfault rate 0.0
+An error has occurred
+i2c_write 0 80 1 1
+An error has occurred
+retry 4 i2c_read 0 80 0 1
+An error has occurred
+dump_regs 0 4
+An error has occurred
+memstat
+An error has occurred

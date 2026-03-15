@@ -1,0 +1,457 @@
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+
+#define MAX_ARGS 64
+#define MAX_PATH 1024
+#define MAX_COMMANDS 64
+
+char error_message[30] = "An error has occurred\n";
+
+void myPrint(char *msg)
+{
+    write(STDOUT_FILENO, msg, strlen(msg));
+}
+
+// reads from input until newline or EOF is reached
+void discard_line(FILE *input) {
+    int c;
+    while ((c = fgetc(input)) != '\n' && c != EOF);
+}
+
+// trim trailing whitespace, want to handle mult cmds
+char* whitespace(char *str) {
+    while (*str == ' ' || *str == '\t') { // skip leading spaces
+        str++;
+    }
+
+    // find end of str
+    char *end = str + strlen(str) - 1;
+
+    while (end > str && (*end == ' ' || *end == '\t')) {
+        *end = '\0';
+        end--;
+    }
+    return str;
+}
+
+// check if cmd has redirection
+int has_redir(char *cmd) {
+    return (strchr(cmd, '>') != NULL);
+}
+
+// count number of basic redirections, not >+
+// treat cases separately
+int count_redirs(char *cmd) {
+    int count = 0;
+    char *pos = cmd;
+    
+    while ((pos = strchr(pos, '>')) != NULL) {
+        if (*(pos + 1) != '+') {
+            count++;
+        }
+        pos++;
+    }
+    return count;
+}
+
+
+
+
+// parse redirection where 0=none, 1=basic (>), 2=advanced (>+), -1=error
+int parse_redir(char *cmd, char **prog_part, char **outfile) {
+    char *redir_pos = strchr(cmd, '>');
+    
+    if (redir_pos == NULL) {
+        return 0; // No redirection
+    }
+
+    // if multiple >, return err
+    if (count_redirs(cmd) > 1) {
+        return -1;
+    }
+    
+    // check for advanced redirection '>+'
+    if (*(redir_pos + 1) == '+') {
+        *redir_pos = '\0';
+        *prog_part = whitespace(cmd);
+        *outfile = whitespace(redir_pos + 2); // skip the >+
+
+        if (strlen(*outfile) == 0) { // err
+            return -1;
+        }
+
+        if (strchr(*outfile, ' ') != NULL || strchr(*outfile, '\t') != NULL) {
+            return -1;
+        }
+
+        return 2; // implement later
+    }
+    
+    // split at '>'
+    *redir_pos = '\0';
+    *prog_part = whitespace(cmd);
+    *outfile = whitespace(redir_pos + 1);
+    
+    if (strlen(*outfile) == 0) {
+        return -1;
+    }
+    
+    // check for spaces in filename cuz mean multiplefiles
+    if (strchr(*outfile, ' ') != NULL || strchr(*outfile, '\t') != NULL) {
+        return -1;
+    }
+    
+    return 1;
+}
+
+// parse cmd str into argv arr, returns number of args found
+// input string modified
+int parse_args(char *cmd, char **argv) {
+    int argc = 0;
+    char *token = strtok(cmd, " \t");
+
+    while (token != NULL && argc < MAX_ARGS - 1){
+        argv[argc++] = token;
+        token = strtok(NULL, " \t"); // next token
+    }
+    argv[argc] = NULL; // required for execvp
+    return argc;
+}
+
+// if cmd is built-in like exit, pwd, executed by shell
+int builtin(char *cmd) {
+    return (strcmp(cmd, "exit") == 0 ||
+            strcmp(cmd, "pwd") == 0 ||
+            strcmp(cmd, "cd") == 0);
+}
+
+// execute the built-in cmds, which run in shell so no fork
+int execute_builtin(char *original_cmd) {
+    // built-ins can't have redirection
+    if (has_redir(original_cmd)) {
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return 1;
+    }
+    
+    char cmd_copy[514];
+    strcpy(cmd_copy, original_cmd);
+    
+    char *cmd_argv[MAX_ARGS];
+    int cmd_argc = parse_args(cmd_copy, cmd_argv);
+    
+    if (cmd_argc == 0) {
+        return 1;
+    }
+
+    if (strcmp(cmd_argv[0], "exit") == 0) {
+        if (cmd_argc != 1) { // no args
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            return 1;
+        }
+        exit(0);
+    }
+    else if (strcmp(cmd_argv[0], "pwd") == 0) {
+        // pwd = print working directory, no arguments allowed
+        if (cmd_argc != 1) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            return 1;
+        }
+        char cwd[MAX_PATH];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            write(STDOUT_FILENO, cwd, strlen(cwd));
+            write(STDOUT_FILENO, "\n", 1);
+        } else {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+        }
+    }
+    else if (strcmp(cmd_argv[0], "cd") == 0) {
+        // cd with no arg, go to home, cd with arg, change to that dir
+        if (cmd_argc == 1) {
+            
+            char *home = getenv("HOME");
+            if (home == NULL || chdir(home) != 0) {
+                write(STDOUT_FILENO, error_message, strlen(error_message));
+            }
+        } else if (cmd_argc == 2) {
+            
+            if (chdir(cmd_argv[1]) != 0) {
+                // err if dir doesn't exist
+                write(STDOUT_FILENO, error_message, strlen(error_message));
+            }
+        } else {
+            // too many arguments
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+        }
+    }
+
+    return 0;
+}
+
+// execute redirection cmds
+void execute_redir(char **argv, char *outfile) {
+    // check if file exists
+    if (access(outfile, F_OK) == 0) {
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return;
+    }
+
+    // check if fake parent, i.e. ./dir/file but dir doesn't exist
+    char *slash = strrchr(outfile, '/');
+    if (slash != NULL) {
+        char dir[MAX_PATH];
+        size_t dir_len = slash - outfile;
+        strncpy(dir, outfile, dir_len);
+        dir[dir_len] = '\0';
+        
+        if (access(dir, F_OK) != 0) {
+            // get parent dir and see if it exists, err if not
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            return;
+        }
+    }
+    
+    pid_t pid = fork();
+    
+    if (pid < 0) {
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return;
+    }
+    
+    if (pid == 0) {
+        // child process, redirect stdout
+        int fd = creat(outfile, 0644);
+        if (fd < 0) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            exit(1);
+        }
+        
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+        
+        if (execvp(argv[0], argv) < 0) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            exit(1);
+        }
+    } else {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+}
+
+
+// execute command w fork, exec, wait
+void execute_cmd(char **argv) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return;
+    }
+
+    // child, execute cmd, execvp only returns if failed
+    if (pid == 0) {
+        if (execvp(argv[0], argv) < 0) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            exit(1);
+        }
+    } else {
+          waitpid(pid,NULL, 0);
+    }
+}
+
+// process just one single cmd, so trims whitespace, parse, executes
+void one_cmd(char *cmd) {
+    cmd = whitespace(cmd);
+    
+    if (strlen(cmd) == 0) {
+        return;
+    }
+    
+    // check for redirection first
+    char cmd_copy[514];
+    strcpy(cmd_copy, cmd);
+    
+    char *prog_part, *outfile;
+    int redir_type = parse_redir(cmd_copy, &prog_part, &outfile);
+    
+    if (redir_type == -1) {
+        // invalid redir
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return;
+    }
+    
+    if (redir_type == 2) {
+        // impl later
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        return;
+    }
+    
+    if (redir_type == 1) {
+        // basic redirection, so check not a built-in
+        char prog_copy[514];
+        strcpy(prog_copy, prog_part);
+        char *first_token = strtok(prog_copy, " \t");
+        
+        if (first_token != NULL && builtin(first_token)) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            return;
+        }
+        
+        // parse and execute with redirection
+        strcpy(prog_copy, prog_part);
+        char *cmd_argv[MAX_ARGS];
+        int cmd_argc = parse_args(prog_copy, cmd_argv);
+        
+        if (cmd_argc == 0) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            return;
+        }
+        
+        execute_redir(cmd_argv, outfile);
+        return;
+    }
+    
+    // no redirection, so check if built-in
+    strcpy(cmd_copy, cmd);
+    char *first_token = strtok(cmd_copy, " \t");
+    
+    if (first_token != NULL && builtin(first_token)) {
+        execute_builtin(cmd);
+        return;
+    }
+    
+    // regular command
+    strcpy(cmd_copy, cmd);
+    char *cmd_argv[MAX_ARGS];
+    int cmd_argc = parse_args(cmd_copy, cmd_argv);
+    
+    if (cmd_argc == 0) {
+        return;
+    }
+    
+    execute_cmd(cmd_argv);
+}
+
+// process for multiple multiple cmd
+void mult_cmds(char *cmdline) {
+    char *commands[MAX_COMMANDS];
+    int num_commands = 0;
+
+    // split cmds by strtok, so [cmd1, cmd2, ...]
+    char *token = strtok(cmdline, ";");
+    while (token != NULL && num_commands < MAX_COMMANDS) {
+        commands[num_commands++] = token;
+        token = strtok(NULL, ";");
+    }
+
+    for (int i = 0; i < num_commands; i++) {
+        one_cmd(commands[i]);
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    FILE *input = stdin;
+    int interactive = 1;
+    char cmd_buff[514]; // 512 chars plus \n and null terminator
+    char *pinput;
+
+    // error if more than two args
+    if (argc > 2) {
+        write(STDOUT_FILENO, error_message, strlen(error_message));
+        exit(1);
+    }
+    
+    // batch mode, reads from file
+    if (argc == 2) {
+        interactive = 0;
+        input = fopen(argv[1], "r");
+        if (input == NULL) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            exit(1);
+        }
+    }
+   
+    while (1) {
+        if (interactive) {
+            myPrint("myshell> ");
+        }
+        
+        // not interactive, so read input w fgets
+        pinput = fgets(cmd_buff, 514, input);
+        if (!pinput) {
+            break;
+        }
+        
+
+        size_t len = strlen(cmd_buff);
+        int too_long = 0;
+
+        if (len == 514 - 1 && cmd_buff[len-1] != '\n') {
+            too_long = 1;
+        }
+
+        // echo in batch
+        if (!interactive) {
+            
+            // skip blank lines in batch mode
+            int is_blank = 1;
+            for (size_t j = 0; j < len; j++) {
+                if (cmd_buff[j] != ' ' && cmd_buff[j] != '\t' && cmd_buff[j] != '\n') {
+                    is_blank = 0;
+                    break;
+                }
+            }
+            if (is_blank) {
+                continue;
+            }
+            
+            write(STDOUT_FILENO, cmd_buff, strlen(cmd_buff));
+            // print rest if line too long
+            if (too_long) {
+                int c;
+                while ((c=fgetc(input)) != '\n' && c != EOF) {
+                    char ch = c;
+                    write(STDOUT_FILENO, &ch, 1);
+                }
+                write(STDOUT_FILENO, "\n", 1);
+            }
+        }
+        
+	// print err and skip execution, and discard if in interactive
+        if (too_long) {
+            write(STDOUT_FILENO, error_message, strlen(error_message));
+            if (interactive) {
+                discard_line(input);
+            }
+            continue;
+        }
+
+        // remove trailing newline chars
+        if (len > 0 && cmd_buff[len-1] == '\n') {
+            cmd_buff[len-1] = '\0';
+            len--;
+        }
+
+        if (len == 0) {
+            continue;
+        }
+
+	// parse cmd into argv arr
+        char cmd_copy[514];
+        strcpy(cmd_copy,cmd_buff);
+        mult_cmds(cmd_copy);
+
+    }
+
+    if (!interactive) {
+        fclose(input);
+    }
+
+
+    return 0;
+}

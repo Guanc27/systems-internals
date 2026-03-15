@@ -1,0 +1,2 @@
+{"ts_sec":1773548351,"ts_nsec":427824157,"cmd":"memfault on","status":0,"elapsed_ms":0,"detail":"redir=0","result":"MEMFAULT_ON"}
+{"ts_sec":1773548351,"ts_nsec":431365535,"cmd":"memfault rate 1.0","status":0,"elapsed_ms":1,"detail":"redir=0","result":"MEMFAULT_RATE_SET"}
