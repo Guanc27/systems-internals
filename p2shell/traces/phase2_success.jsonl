@@ -1,9 +1,0 @@
-{"ts_sec":1773552291,"ts_nsec":601592282,"cmd":"i2c_write 0 80 1 1","status":0,"elapsed_ms":1,"detail":"redir=0","result":"OK"}
-{"ts_sec":1773552291,"ts_nsec":604826536,"cmd":"retry 4 i2c_read 0 80 0 1","status":1,"elapsed_ms":1,"detail":"redir=0","result":"OK"}
-{"ts_sec":1773552291,"ts_nsec":606144870,"cmd":"dump_regs 0 8","status":0,"elapsed_ms":0,"detail":"redir=0","result":"R00=0x01 R01=0x00 R02=0x00 R03=0x00 R04=0x00 R05=0x00 R06=0x00 R07=0x00"}
-{"ts_sec":1773552291,"ts_nsec":606875502,"cmd":"spi_xfer 0 1 1 2 3","status":0,"elapsed_ms":0,"detail":"redir=0","result":"0xA4 0xA7 0xA6\n"}
-{"ts_sec":1773552291,"ts_nsec":609245085,"cmd":"mdio_read 0 1 2","status":0,"elapsed_ms":0,"detail":"redir=0","result":"0x0000\n"}
-{"ts_sec":1773552291,"ts_nsec":610103375,"cmd":"uart_send 0 bringup_ok","status":0,"elapsed_ms":0,"detail":"redir=0","result":"bringup_ok"}
-{"ts_sec":1773552291,"ts_nsec":625836289,"cmd":"sleep_ms 15","status":0,"elapsed_ms":15,"detail":"redir=0","result":"SLEEP_DONE"}
-{"ts_sec":1773552291,"ts_nsec":627290919,"cmd":"expect_timeout 10 sleep_ms 20","status":1,"elapsed_ms":0,"detail":"redir=0","result":"SLEEP_DONE"}
-{"ts_sec":1773552291,"ts_nsec":628321176,"cmd":"assert_eq $LAST TIMEOUT_EXPECTED","status":1,"elapsed_ms":0,"detail":"redir=0","result":"SLEEP_DONE"}

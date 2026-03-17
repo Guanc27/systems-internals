@@ -1,0 +1,3 @@
+spi_xfer 0 1 1 2 3
+mdio_read 0 1 2
+uart_send 0 hello world

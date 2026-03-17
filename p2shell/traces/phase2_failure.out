@@ -1,6 +1,0 @@
-i2c_read 9 80 0 1
-An error has occurred
-retry 2 i2c_read 9 80 0 1
-An error has occurred
-assert_eq mismatch expected
-An error has occurred

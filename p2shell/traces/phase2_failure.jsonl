@@ -1,3 +1,0 @@
-{"ts_sec":1773552291,"ts_nsec":653438304,"cmd":"i2c_read 9 80 0 1","status":1,"elapsed_ms":1,"detail":"redir=0","result":""}
-{"ts_sec":1773552291,"ts_nsec":655054144,"cmd":"retry 2 i2c_read 9 80 0 1","status":1,"elapsed_ms":0,"detail":"redir=0","result":""}
-{"ts_sec":1773552291,"ts_nsec":656251257,"cmd":"assert_eq mismatch expected","status":1,"elapsed_ms":0,"detail":"redir=0","result":""}
