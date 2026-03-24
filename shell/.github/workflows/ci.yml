@@ -1,0 +1,36 @@
+name: shell-ci
+
+on:
+  push:
+    paths:
+      - "**.c"
+      - "**.h"
+      - "Makefile"
+      - "tests/**"
+      - "tools/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shell
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y python3
+
+      - name: Build
+        run: make clean && make
+
+      - name: Run integration tests
+        run: chmod +x tests/run_tests.sh && make test
+
+      - name: Sanitizer build and smoke test
+        run: make sanitizers && ./myshell tests/demo_success.batch >/dev/null
+
+      - name: Parser fuzz smoke
+        run: python3 tools/fuzz_parser.py

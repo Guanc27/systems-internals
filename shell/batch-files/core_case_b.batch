@@ -1,0 +1,4 @@
+pwd
+echo shell_core_b
+ls
+exit

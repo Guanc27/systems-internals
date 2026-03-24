@@ -1,0 +1,3 @@
+cd /tmp/this_path_should_not_exist
+nosuchcommand
+exit

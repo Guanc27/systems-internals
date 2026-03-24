@@ -1,0 +1,2 @@
+echo alpha > shell_redir_a.txt
+cat shell_redir_a.txt

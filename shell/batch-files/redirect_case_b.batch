@@ -1,0 +1,4 @@
+echo beta > shell_redir_b.txt
+echo gamma >+ shell_redir_b.txt
+cat shell_redir_b.txt
+exit

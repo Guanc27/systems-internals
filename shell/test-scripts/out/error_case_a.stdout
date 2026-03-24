@@ -1,0 +1,6 @@
+cd /tmp/this_path_should_not_exist
+An error has occurred
+nosuchcommand
+An error has occurred
+An error has occurred
+exit

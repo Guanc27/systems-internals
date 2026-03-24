@@ -1,0 +1,6 @@
+cd ..
+cd /definitely/not/here
+An error has occurred
+pwd
+/mnt/c/Users/user/projects/sys_proj
+exit

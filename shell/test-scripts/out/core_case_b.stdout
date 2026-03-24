@@ -1,0 +1,26 @@
+pwd
+/mnt/c/Users/user/projects/sys_proj/shell
+echo shell_core_b
+
+ls
+Makefile
+allocator.c
+allocator.h
+batch-files
+demo_phase2_failure.batch
+demo_phase2_success.batch
+expected-output
+fuzz-corpus
+myshell
+myshell.c
+myshell.c.save
+sim_device.c
+sim_device.h
+test-scripts
+test.txt
+tests
+tools
+trace.c
+trace.h
+traces
+exit
