@@ -18,5 +18,11 @@ if [ ! -f "$BATCH_FILE" ]; then
 fi
 
 mkdir -p "$OUT_DIR"
-"$SHELL_DIR/myshell" "$BATCH_FILE" > "$OUT_DIR/$CASE_NAME.stdout" 2> "$OUT_DIR/$CASE_NAME.stderr" || true
+stderr_tmp="$OUT_DIR/$CASE_NAME.stderr.tmp"
+timeout 5 "$SHELL_DIR/myshell" "$BATCH_FILE" > "$OUT_DIR/$CASE_NAME.stdout" 2> "$stderr_tmp" || true
+if [ -s "$stderr_tmp" ]; then
+    mv "$stderr_tmp" "$OUT_DIR/$CASE_NAME.stderr"
+else
+    rm -f "$stderr_tmp"
+fi
 echo "finished $CASE_NAME"

@@ -9,7 +9,6 @@ allocator.h
 batch-files
 demo_phase2_failure.batch
 demo_phase2_success.batch
-expected-output
 fuzz-corpus
 myshell
 myshell.c

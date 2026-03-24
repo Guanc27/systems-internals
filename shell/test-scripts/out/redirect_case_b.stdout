@@ -1,4 +1,4 @@
 echo beta > shell_redir_b.txt
 echo gamma > shell_redir_b.txt
+An error has occurred
 cat shell_redir_b.txt
-exit
